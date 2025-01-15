@@ -1,68 +1,72 @@
-# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+// ==UserScript==
+// @name         Preenchimento Automático de Login Atualizado
+// @namespace    http://tampermonkey.net/
+// @version      1.4
+// @author       Marques
+// @match        https://visa.vfsglobal.com/*
+// @grant        none
+// ==/UserScript==
 
-name: Userscripts deployment
-on:
-  release:
-    types: [published] # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#release
-jobs:
-  Deployment:
-    strategy:
-      matrix: # https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
-        platform: [mac, ios]
-    runs-on: macos-latest # https://github.com/actions/runner-images
-    steps:
-      - uses: actions/checkout@v4 # https://github.com/actions/checkout
-        with:
-          fetch-depth: 0
-          fetch-tags: true # https://github.com/actions/checkout/issues/1781
-      - uses: actions/setup-node@v4 # https://github.com/actions/setup-node
-        with:
-          node-version: latest
-      - id: semver # Parse semver from github ref
-        uses: userscriptsup/actions/semver-parser@main
-      - name: Verify release type
-        run: |
-          if ${{ github.event.release.prerelease }}; then
-            ${{ steps.semver.outputs.beta }} || exit 11
-          else
-            ${{ steps.semver.outputs.alpha }} && exit 12
-            ${{ steps.semver.outputs.beta }} && exit 13
-            [ -n "${{ steps.semver.outputs.prerelease }}" ] && exit 14
-            exit 0
-          fi
-      - run: npm ci
-      - run: npm run lint:js
-      - run: npm run lint:css
-      - run: BETA=1 npm run build:${{ matrix.platform }}-safari-15
-        if: ${{ github.event.release.prerelease }}
-      - run: npm run build:${{ matrix.platform }}-safari-15
-        if: ${{ ! github.event.release.prerelease }}
-      - name: Set xcode version
-        run: sudo xcode-select -s "/Applications/Xcode_15.4.app" # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md#xcode
-      - name: Run fastlane
-        id: fastlane
-        working-directory: ./fastlane
-        env:
-          FASTLANE_OPT_OUT_USAGE: "YES"
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          MATCH_GIT_PRIVATE_KEY: "fastlane/${{ secrets.GIT_PRIVATE_KEY_FILE }}"
-          GIT_PRIVATE_KEY_FILE: ${{ secrets.GIT_PRIVATE_KEY_FILE }}
-          GIT_PRIVATE_KEY_BASE64: ${{ secrets.GIT_PRIVATE_KEY_BASE64 }} # https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#storing-base64-binary-blobs-as-secrets
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          GYM_INSTALLER_CERT_NAME: ${{ secrets.GYM_INSTALLER_CERT_NAME }} # required for mac (unable to auto-detect)
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
-          MARKETING_VERSION: ${{ steps.semver.outputs.core }}
-          IS_PRERELEASE: ${{ github.event.release.prerelease }}
-        run: |
-          echo $GIT_PRIVATE_KEY_BASE64 | base64 --decode  > $GIT_PRIVATE_KEY_FILE
-          chmod 600 $GIT_PRIVATE_KEY_FILE
-          bundle install
-          $IS_PRERELEASE && bundle exec fastlane ${{ matrix.platform }} beta
-          $IS_PRERELEASE || bundle exec fastlane ${{ matrix.platform }} release
-      - name: Artifact dSYM
-        uses: actions/upload-artifact@v4 # https://github.com/actions/upload-artifact
-        with:
-          name: Userscripts_${{ matrix.platform }}_${{ steps.fastlane.outputs.ver || github.ref_name }}.app.dSYM
-          path: build/*.dSYM.zip
+(function () {
+  'use strict';
+
+  // Lista de contas
+  const contas = [
+    { email: "mikasamoreco@gmail.com", senha: "Cleuria2122!" },
+    { email: "mikasamoreco@gmail.com", senha: "Cleuria2122!" }
+  ];
+
+  let contaAtual = contas[0]; // Conta padrão
+
+  function preencherLogin() {
+    const campoEmail = document.querySelector('input[type="email"], input[name="email"], input#email');
+    const campoSenha = document.querySelector('input[type="password"], input[name="password"], input#password');
+
+    if (campoEmail && campoSenha) {
+      campoEmail.value = contaAtual.email;
+      campoEmail.dispatchEvent(new Event('input', { bubbles: true }));
+
+      campoSenha.value = contaAtual.senha;
+      campoSenha.dispatchEvent(new Event('input', { bubbles: true }));
+
+      console.log("Campos preenchidos com sucesso!");
+    } else {
+      console.warn("Campos não encontrados.");
+    }
+  }
+
+  function alternarConta() {
+    let novaConta = prompt("Escolha a conta (0 para primeira, 1 para segunda):", "0");
+    if (novaConta !== null && contas[novaConta]) {
+      contaAtual = contas[novaConta];
+      preencherLogin();
+    } else {
+      alert("Conta inválida!");
+    }
+  }
+
+  function criarBotao() {
+    const botao = document.createElement("button");
+    botao.textContent = "Preencher Login";
+    botao.style.position = "fixed";
+    botao.style.top = "50%";  // Centraliza verticalmente
+    botao.style.left = "50%"; // Centraliza horizontalmente
+    botao.style.transform = "translate(-50%, -50%)"; // Ajusta para garantir que o centro seja exato
+    botao.style.padding = "10px";
+    botao.style.backgroundColor = "#4CAF50";
+    botao.style.color = "#fff";
+    botao.style.border = "none";
+    botao.style.borderRadius = "5px";
+    botao.style.cursor = "pointer";
+    botao.style.zIndex = "9999";
+
+    botao.onclick = alternarConta;
+
+    document.body.appendChild(botao);
+  }
+
+  // Tenta preencher os campos após o carregamento
+  setInterval(preencherLogin, 1000);
+
+  window.addEventListener('load', criarBotao);
+})();
